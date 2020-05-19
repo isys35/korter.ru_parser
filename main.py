@@ -1,8 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 import sys
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 import re
+import xlwt, xlrd
+import time
+import os
 
 
 def save_file(txt: str, file_name: str):
@@ -20,6 +23,8 @@ class NewBuildingsData:
     HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:76.0) Gecko/20100101 Firefox/76.0'
     }
+    EXCEL_FILE_NAME = 'data.xls'
+    IMG_CATALOG = 'img'
 
     def get_cities_urls(self):
         resp = requests.get(self.MAIN_PAGE, headers=self.HEADERS)
@@ -60,8 +65,9 @@ class NewBuildingsData:
         layouts = []
         for layout_url in layouts_urls:
             resp_layout = requests.get(layout_url, headers=self.HEADERS)
-            layouts.append(self.parsing_layout(resp_layout.text))
-
+            layout = self.parsing_layout(resp_layout.text)
+            layout['url'] = url
+            layouts.append(layout)
         return layouts
 
     @staticmethod
@@ -81,21 +87,77 @@ class NewBuildingsData:
             layout['price'] = price
         return layout
 
+    def save_layouts(self, layouts):
+        try:
+            rb = xlrd.open_workbook(self.EXCEL_FILE_NAME)
+        except FileNotFoundError:
+            self.create_xls_file()
+            rb = xlrd.open_workbook(self.EXCEL_FILE_NAME)
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('sheet')
+        sheet = rb.sheet_by_index(0)
+        rows = sheet.nrows
+        for rownum in range(rows):
+            row = sheet.row_values(rownum)
+            for colnum in range(len(row)):
+                ws.write(rownum, colnum, row[colnum])
+        for layout in layouts:
+            ws.write(rows + layouts.index(layout), 0, unquote(layout['url']))
+            ws.write(rows + layouts.index(layout), 1, layout['layout_name'])
+            ws.write(rows + layouts.index(layout), 2, layout['area'])
+            if 'price' in layout:
+                ws.write(rows + layouts.index(layout), 3, layout['price'])
+            self.save_image(layout)
+        wb.save(self.EXCEL_FILE_NAME)
+
+    def save_image(self, layout):
+        resp = requests.get(layout['img_src'], self.HEADERS)
+        if layout['residential_complex'] not in os.listdir(path=self.IMG_CATALOG):
+            os.mkdir(f"{self.IMG_CATALOG}/{layout['residential_complex']}")
+        image_name = re.search(r'/(\d+.\w+)', layout['img_src']).group(1)
+        with open(f"{self.IMG_CATALOG}/{layout['residential_complex']}/{image_name}", 'wb') as out:
+            out.write(resp.content)
+
+    def create_xls_file(self):
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('sheet')
+        ws.write(0, 0, 'url')
+        ws.write(0, 1, 'планировка')
+        ws.write(0, 2, 'площадь, м2')
+        ws.write(0, 3, 'цена, руб')
+        wb.save(self.EXCEL_FILE_NAME)
+        for i in range(0, 4):
+            ws.col(i).width = 6000
+
 
 def main():
     parser = NewBuildingsData()
-    cities = parser.get_cities_urls()
-    new_buildings_urls = []
-    for city in cities:
-        print(city)
-        new_buildings_urls.extend(parser.get_newbuildings_urls(city))
-    print(len(new_buildings_urls))
-    layouts = []
+    try:
+        cities = eval(load_file('cities'))
+    except FileNotFoundError:
+        cities = parser.get_cities_urls()
+        save_file(str(cities), 'cities')
+    try:
+        new_buildings_urls = eval(load_file('new_buildings_urls'))
+    except FileNotFoundError:
+        new_buildings_urls = []
+        for city in cities:
+            print(city)
+            new_buildings_urls.extend(parser.get_newbuildings_urls(city))
+        save_file(str(new_buildings_urls), 'new_buildings_urls')
+    try:
+        parsed_url = eval(load_file('parsed_url'))
+    except FileNotFoundError:
+        parsed_url = []
     for new_building_url in new_buildings_urls:
-        layouts.extend(parser.get_building_layouts(new_building_url))
+        if new_building_url in parsed_url:
+            continue
+        print(new_building_url)
+        layouts = parser.get_building_layouts(new_building_url)
+        parser.save_layouts(layouts)
+        parsed_url.append(new_building_url)
+        save_file(str(parsed_url), 'parsed_url')
 
 
 if __name__ == '__main__':
-    # main()
-    parser = NewBuildingsData()
-    parser.get_building_layouts('https://korter.ru/%D0%B6%D0%BA-nova-park-%D0%B5%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3')
+    main()
