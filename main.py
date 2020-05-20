@@ -76,7 +76,10 @@ class NewBuildingsData:
         layout_page_info = {}
         for element in soup.select('.KeyValue__StyledKeyValue-gwnrbl-0.bKluVn'):
             layout_page_info[element.select('div')[0].text] = element.select('div')[1].text
-        img_src = 'https:' + soup.select_one('.gallery__StyledMainImage-sc-7sqsts-5.hWNlQd')['src']
+        image_block = soup.select_one('.gallery__StyledMainImage-sc-7sqsts-5')
+        if not image_block:
+            save_file(resp_text,'eror_imag.html')
+        img_src = 'https:' + image_block['src']
         price = soup.select_one('.mainInfo__StyledPrice-sc-1k2gfo5-6.hIhsZO')
         layout = {'img_src': img_src, 'layout_name': layout_page_info['Планировка'],
                   'residential_complex': layout_page_info['Жилой комплекс'],
@@ -85,6 +88,7 @@ class NewBuildingsData:
             price_search = re.findall('\d+', price.text)
             price = int(''.join(price_search))
             layout['price'] = price
+        print(layout)
         return layout
 
     def save_layouts(self, layouts):
@@ -112,11 +116,20 @@ class NewBuildingsData:
 
     def save_image(self, layout):
         resp = requests.get(layout['img_src'], self.HEADERS)
-        if layout['residential_complex'] not in os.listdir(path=self.IMG_CATALOG):
-            os.mkdir(f"{self.IMG_CATALOG}/{layout['residential_complex']}")
-        image_name = re.search(r'/(\d+.\w+)', layout['img_src']).group(1)
-        with open(f"{self.IMG_CATALOG}/{layout['residential_complex']}/{image_name}", 'wb') as out:
-            out.write(resp.content)
+        try:
+            if layout['residential_complex'].replace('/', '_') not in os.listdir(path=self.IMG_CATALOG):
+                os.mkdir(f"{self.IMG_CATALOG}/{layout['residential_complex'].replace('/','_')}")
+            image_name = re.search(r'/(\d+.\w+)', layout['img_src']).group(1)
+            with open(f"{self.IMG_CATALOG}/{layout['residential_complex'].replace('/', '_')}/{image_name}",
+                      'wb') as out:
+                out.write(resp.content)
+        except OSError:
+            if 'fasfdas' not in os.listdir(path=self.IMG_CATALOG):
+                os.mkdir(f"{self.IMG_CATALOG}/{'fasfdas'}")
+            image_name = re.search(r'/(\d+.\w+)', layout['img_src']).group(1)
+            with open(f"{self.IMG_CATALOG}/{'fasfdas'}/{image_name}",
+                      'wb') as out:
+                out.write(resp.content)
 
     def create_xls_file(self):
         wb = xlwt.Workbook()
