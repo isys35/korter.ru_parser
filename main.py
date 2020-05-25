@@ -81,9 +81,13 @@ class NewBuildingsData:
             save_file(resp_text,'eror_imag.html')
         img_src = 'https:' + image_block['src']
         price = soup.select_one('.mainInfo__StyledPrice-sc-1k2gfo5-6.hIhsZO')
+        try:
+            area = float(layout_page_info['Площадь'].replace(' м2', ''))
+        except ValueError:
+            area = None
         layout = {'img_src': img_src, 'layout_name': layout_page_info['Планировка'],
                   'residential_complex': layout_page_info['Жилой комплекс'],
-                  'area': float(layout_page_info['Площадь'].replace(' м2', ''))}
+                  'area': area}
         if price:
             price_search = re.findall('\d+', price.text)
             price = int(''.join(price_search))
