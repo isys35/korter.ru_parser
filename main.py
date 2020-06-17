@@ -15,8 +15,11 @@ def save_file(txt: str, file_name: str):
 
 
 def load_file(file_name: str):
-    with open(file_name, 'r', encoding='utf8') as file:
-        return file.read()
+    try:
+        with open(file_name, 'r', encoding='utf8') as file:
+            return file.read()
+    except FileNotFoundError:
+        return '[]'
 
 
 class NewBuildingsData(Parser):
@@ -70,6 +73,7 @@ class NewBuildingsData(Parser):
 
     def get_building_layouts(self, new_building_urls):
         urls = [new_building_url + quote('/планировки') for new_building_url in new_building_urls]
+        newbildings_name = [unquote(new_building_url).split('/')[-1] for new_building_url in new_building_urls]
         resps = self.requests.get(urls)
         layouts = []
         for resp_index in range(len(resps)):
@@ -82,6 +86,8 @@ class NewBuildingsData(Parser):
                     resp_layout = self.request.get(layouts_urls[resp_layout_index])
                     layout = self.parsing_layout(resp_layout.text)
                 layout['url'] = urls[resp_index]
+                layout['residential_complex'] = newbildings_name[resp_index]
+                print(layout)
                 layouts.append(layout)
         return layouts
 
@@ -108,7 +114,6 @@ class NewBuildingsData(Parser):
             price_search = re.findall('\d+', price.text)
             price = int(''.join(price_search))
             layout['price'] = price
-        print(layout)
         return layout
 
     def save_layouts(self, layouts, city):
@@ -131,19 +136,20 @@ class NewBuildingsData(Parser):
             ws.write(rows + layouts.index(layout), 2, layout['area'])
             if 'price' in layout:
                 ws.write(rows + layouts.index(layout), 3, layout['price'])
-            self.save_image(layout, city)
+            self._save_image(layout, city)
         wb.save(self.EXCEL_FILE_NAME)
 
-    def save_image(self, layout, city):
-        resp = self.request.get(layout['img_src'])
+    def _save_image(self, layout, city):
         if city not in os.listdir(path=self.IMG_CATALOG):
             os.mkdir(f"{self.IMG_CATALOG}/{city}")
-        if layout['layout_name'] not in os.listdir(path=f"{self.IMG_CATALOG}/{city}"):
-            os.mkdir(f"{self.IMG_CATALOG}/{city}/{layout['layout_name']}")
+        if layout['residential_complex'] not in os.listdir(path=f"{self.IMG_CATALOG}/{city}"):
+            os.mkdir(f"{self.IMG_CATALOG}/{city}/{layout['residential_complex']}")
+        if layout['layout_name'] not in os.listdir(path=f"{self.IMG_CATALOG}/{city}/{layout['residential_complex']}"):
+            os.mkdir(f"{self.IMG_CATALOG}/{city}/{layout['residential_complex']}/{layout['layout_name']}")
         image_name = re.search(r'/(\d+.\w+)', layout['img_src']).group(1)
-        with open(f"{self.IMG_CATALOG}/{city}/{layout['layout_name']}/{image_name}",
-                  'wb') as out:
-            out.write(resp.content)
+        file_name = f"{self.IMG_CATALOG}/{city}/{layout['residential_complex']}/{layout['layout_name']}/{image_name}"
+        print(file_name)
+        self.save_image(layout['img_src'], file_name)
 
     def create_xls_file(self):
         wb = xlwt.Workbook()
@@ -160,10 +166,19 @@ class NewBuildingsData(Parser):
 def main():
     parser = NewBuildingsData()
     cities = parser.get_cities_urls()
+    cities.reverse()
     new_buildings_urls = parser.get_newbuildings_urls(cities)
     for city in new_buildings_urls:
+        parsed_cities = eval(load_file('cities'))
+        if city in parsed_cities:
+            continue
+        print(city)
         layouts = parser.get_building_layouts(new_buildings_urls[city])
+        print(layouts)
         parser.save_layouts(layouts, city)
+        parsed_cities.append(city)
+        save_file(str(parsed_cities), 'cities')
+
 
 
 if __name__ == '__main__':

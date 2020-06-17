@@ -3,7 +3,7 @@ import sys
 import os
 import asyncio, aiohttp
 from urllib.parse import unquote, quote
-
+import httplib2
 
 class Parser:
     def __init__(self):
@@ -16,6 +16,12 @@ class Parser:
             os.mkdir('html_files')
         with open(f'{self.html_files_catlog_name}/{file_name}', 'w', encoding='utf8') as file:
             file.write(txt)
+
+    def save_image(self, url, image_name):
+        h = httplib2.Http('.cache')
+        response, content = h.request(url)
+        with open(f"{image_name}", 'wb') as out:
+            out.write(content)
 
 
 class Request:
@@ -31,7 +37,10 @@ class Request:
             response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response
+        elif response.status_code == 403:
+            return None
         else:
+            print(url)
             print(response.status_code)
             sys.exit()
 
