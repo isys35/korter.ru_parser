@@ -91,15 +91,14 @@ class NewBuildingsData(Parser):
                 layouts.append(layout)
         return layouts
 
-    @staticmethod
-    def parsing_layout(resp_text):
+    def parsing_layout(self, resp_text):
         soup = BeautifulSoup(resp_text, 'lxml')
         layout_page_info = {}
         for element in soup.select('.KeyValue__StyledKeyValue-gwnrbl-0.bKluVn'):
             layout_page_info[element.select('div')[0].text] = element.select('div')[1].text
-        image_block = soup.select_one('.gallery__StyledMainImage-sc-7sqsts-5')
+        image_block = soup.select_one('.SwipableGallery__StyledImage-q9ee6z-4')
         if not image_block:
-            save_file(resp_text,'eror_imag.html')
+            save_file(resp_text, 'eror_imag.html')
             return None
         img_src = 'https:' + image_block['src']
         price = soup.select_one('.mainInfo__StyledPrice-sc-1k2gfo5-6.hIhsZO')
@@ -140,6 +139,10 @@ class NewBuildingsData(Parser):
         wb.save(self.EXCEL_FILE_NAME)
 
     def _save_image(self, layout, city):
+        try:
+            os.listdir(path=self.IMG_CATALOG)
+        except FileNotFoundError:
+            os.mkdir(self.IMG_CATALOG)
         if city not in os.listdir(path=self.IMG_CATALOG):
             os.mkdir(f"{self.IMG_CATALOG}/{city}")
         if layout['residential_complex'] not in os.listdir(path=f"{self.IMG_CATALOG}/{city}"):
@@ -174,7 +177,6 @@ def main():
             continue
         print(city)
         layouts = parser.get_building_layouts(new_buildings_urls[city])
-        print(layouts)
         parser.save_layouts(layouts, city)
         parsed_cities.append(city)
         save_file(str(parsed_cities), 'cities')
