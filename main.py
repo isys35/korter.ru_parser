@@ -211,6 +211,7 @@ class BuildingsParser(Parser):
         self.save_object(self.cities, 'cities')
 
 
+
 class City(Parser):
     def __init__(self, url):
         super().__init__()
@@ -253,6 +254,9 @@ class City(Parser):
         for page in self.pages_objects:
             self.newbuildings.extend(page.newbuildings)
 
+    def update_buildings_html_code(self):
+        pass
+
 
 class PageObject:
     def __init__(self, city, url):
@@ -284,11 +288,15 @@ class LayoutPage:
         self.city = city
         self.newbuilding = newbuilding
         self.url = url
+        self.html_code = str()
         self.layouts = []
+
 
     def update_layouts(self):
         if self.layouts:
             return
+        layouts = [HOST + quote(layout['href'].replace('HOST', '')) for layout in
+                        soup.select('.LayoutCard__StyledImage-sc-1j6xc9t-0.bOLFEI')]
 
 
 class Layout(Parser):
