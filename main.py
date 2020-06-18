@@ -82,10 +82,11 @@ class NewBuildingsData(Parser):
             resps_layout = self.requests.get(layouts_urls)
             for resp_layout_index in range(len(resps_layout)):
                 layout = self.parsing_layout(resps_layout[resp_layout_index])
-                while not layout:
+                if not layout:
                     resp_layout = self.request.get(layouts_urls[resp_layout_index])
-                    print(resp_layout)
                     layout = self.parsing_layout(resp_layout.text)
+                if not layout:
+                    continue
                 layout['url'] = urls[resp_index]
                 layout['residential_complex'] = newbildings_name[resp_index]
                 print(layout)
@@ -165,6 +166,8 @@ class NewBuildingsData(Parser):
         wb.save(self.EXCEL_FILE_NAME)
         for i in range(0, 4):
             ws.col(i).width = 6000
+
+class Layout
 
 
 def main():
