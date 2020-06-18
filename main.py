@@ -184,20 +184,22 @@ class BuildingsParser(Parser):
 
     def start(self):
         self.cities = self.load_object('cities')
+        print('Update city html code')
         if not self.cities:
             cities_urls = self.get_cities_urls()
             self.cities = [City(url) for url in cities_urls]
-            resps = self.requests.get([city.url for city in self.cities])
-            for index_resps in range(len(resps)):
-                self.cities[index_resps].html_code = resps[index_resps]
+            for city in self.cities:
+                city.update_html_code()
         print('Update city names')
         for city in self.cities:
             city.update_name()
+            print(city.name)
         self.save_object(self.cities, 'cities')
         print('Update pages')
         for city in self.cities:
+            print(city.name)
             city.update_all_pages()
-        self.save_object(self.cities, 'cities')
+            self.save_object(self.cities, 'cities')
         print('Update newbuildings')
         for city in self.cities:
             for page in city.pages_objects:
@@ -240,6 +242,9 @@ class City(Parser):
     def update_name(self):
         self.name = unquote(self.url).split('/')[-1]
 
+    def update_html_code(self):
+        self.html_code = self.request.get(self.url).text
+
     def get_max_page(self, resp):
         soup = BeautifulSoup(resp, 'lxml')
         max_page = soup.select('.Pagination__StyledPaginationButton-fz9lk2-0')[-2].text
@@ -248,6 +253,11 @@ class City(Parser):
     def update_all_pages(self):
         if self.pages_objects:
             return
+        error = BeautifulSoup(self.html_code, 'lxml').select_one('.error__StyledEmotion-z0t00o-2.hAQjBB')
+        while error:
+            print('Error')
+            self.update_html_code()
+            error = BeautifulSoup(self.html_code, 'lxml').select_one('.error__StyledEmotion-z0t00o-2.hAQjBB')
         max_page = self.get_max_page(self.html_code)
         pages_url = [self.url]
         page = 1
@@ -379,6 +389,8 @@ class Layout(Parser):
 
 def main():
     parser = BuildingsParser()
+    #resp = parser.request.get('https://korter.ru/%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B8-%D1%81%D0%BF%D0%B1')
+    #parser.save_html(resp.text, 'debug.html')
     parser.start()
 
 
