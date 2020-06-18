@@ -167,9 +167,6 @@ class NewBuildingsData(Parser):
         for i in range(0, 4):
             ws.col(i).width = 6000
 
-class Layout
-
-
 def main():
     parser = NewBuildingsData()
     cities = parser.get_cities_urls()
