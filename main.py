@@ -84,6 +84,7 @@ class NewBuildingsData(Parser):
                 layout = self.parsing_layout(resps_layout[resp_layout_index])
                 while not layout:
                     resp_layout = self.request.get(layouts_urls[resp_layout_index])
+                    print(resp_layout)
                     layout = self.parsing_layout(resp_layout.text)
                 layout['url'] = urls[resp_index]
                 layout['residential_complex'] = newbildings_name[resp_index]
