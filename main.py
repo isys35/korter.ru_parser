@@ -210,6 +210,17 @@ class BuildingsParser(Parser):
                 for page in city.pages_objects:
                     page.html_code = str()
         self.save_object(self.cities, 'cities')
+        for city in self.cities:
+            if city.is_parsed:
+                continue
+            city.update_buildings_html_code()
+            for newbuilding in city.newbuildings:
+                if newbuilding.is_parsed:
+                    continue
+                newbuilding.layout_page.update_layouts()
+                self.save_object(self.cities, 'cities')
+            city.is_parsed = True
+            self.save_object(self.cities, 'cities')
 
 class City(Parser):
     def __init__(self, url):
@@ -219,6 +230,7 @@ class City(Parser):
         self.name = str()
         self.html_code = str()
         self.pages_objects = []
+        self.is_parsed = False
 
     def update_name(self):
         self.name = unquote(self.url).split('/')[-1]
@@ -285,6 +297,7 @@ class NewBuilding(Parser):
         self.name = unquote(self.url).split('/')[-1]
         self.layout_page = LayoutPage(self, city, self.url + quote('/планировки'))
         self.html_code = str()
+        self.is_parsed = False
 
 
 class LayoutPage:
@@ -301,6 +314,7 @@ class LayoutPage:
         soup = BeautifulSoup(self.newbuilding.html_code, 'lxml')
         self.layouts = [Layout(self.newbuilding, self.city, HOST + quote(layout['href'].replace('HOST', ''))) for layout in
                         soup.select('.LayoutCard__StyledImage-sc-1j6xc9t-0.bOLFEI')]
+        self.newbuilding.is_parsed = True
 
 
 class Layout(Parser):
