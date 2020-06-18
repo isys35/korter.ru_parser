@@ -258,7 +258,7 @@ class City(Parser):
                     pages_url.append(page_url)
                 resp_page = self.request.get(pages_url[-1])
                 max_page = self.get_max_page(resp_page.text)
-        self.pages_objects = [PageObject(self, url) for url in self.pages_objects]
+        self.pages_objects = [PageObject(self, url) for url in pages_url]
         resps_all_pages = self.requests.get(pages_url)
         for index_resps in range(len(resps_all_pages)):
             self.pages_objects[index_resps].html_code = resps_all_pages[index_resps]
