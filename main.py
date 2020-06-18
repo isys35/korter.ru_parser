@@ -193,7 +193,9 @@ class BuildingsParser(Parser):
         for index_resps in range(len(resps)):
             cities_for_update[index_resps].html_code = resps[index_resps]
         for city in cities_for_update:
+            print('Обновление имени города...')
             city.update_name()
+            print(city.name)
         self.save_object(self.cities, 'cities')
         for city in cities_for_update:
             city.update_all_pages()
@@ -236,7 +238,7 @@ class City(Parser):
         self.pages_objects = []
 
     def update_name(self):
-        self.name = unquote(self.html_code).split('/')[-1]
+        self.name = unquote(self.url).split('/')[-1]
 
     def get_max_page(self, resp):
         soup = BeautifulSoup(resp, 'lxml')
@@ -244,7 +246,6 @@ class City(Parser):
         return int(max_page)
 
     def update_all_pages(self):
-        self.pages_objects = self.load_object('pages_objects')
         if self.pages_objects:
             return
         max_page = self.get_max_page(self.html_code)
