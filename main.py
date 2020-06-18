@@ -7,6 +7,7 @@ import xlwt, xlrd
 import time
 import os
 from parsing_base import Parser
+from typing import NamedTuple
 
 
 def save_file(txt: str, file_name: str):
@@ -167,20 +168,138 @@ class NewBuildingsData(Parser):
         for i in range(0, 4):
             ws.col(i).width = 6000
 
+
+class BuildingsParser(Parser):
+    def __init__(self):
+        super().__init__()
+        self.host = 'https://korter.ru'
+        self.cities = []
+
+    def get_cities_urls(self):
+        resp = self.request.get(self.host)
+        soup = BeautifulSoup(resp.text, 'lxml')
+        city_urls = [self.host + quote(city_block['href']) for city_block in soup.select('.SeoLink__StyledWrapper-sc-7zimy-0')
+                     if 'новостройки' in city_block['href']]
+        return city_urls
+
+    def update_cities(self):
+        self.cities = self.load_object('cities')
+        if not self.cities:
+            cities_urls = self.get_cities_urls()
+            self.cities = [City(url) for url in cities_urls]
+            self.save_object(self.cities, 'cities')
+        cities_for_update = [city for city in self.cities if not city.name or not city.newbuildings]
+        resps = self.requests.get([city.url for city in cities_for_update])
+        for index_resps in range(len(resps)):
+            cities_for_update[index_resps].html_code = resps[index_resps]
+        for city in cities_for_update:
+            city.update_name()
+        self.save_object(self.cities, 'cities')
+        for city in cities_for_update:
+            city.update_all_pages()
+        self.save_object(self.cities, 'cities')
+
+    def get_newbuildings_urls(self, url_city_list):
+        print('[INFO] Получение ссылок на новостройки в городах')
+        start_time = time.time()
+        resps = self.requests.get(url_city_list)
+        newbuildings_city = {}
+        for index_resp in range(len(resps)):
+            city = unquote(url_city_list[index_resp]).split('/')[-1]
+            max_page = self.get_max_page(resps[index_resp])
+            pages_url = [url_city_list[index_resp]]
+            page = 1
+            if max_page:
+                while page != max_page:
+                    while page != max_page:
+                        page += 1
+                        page_url = url_city_list[index_resp] + f'?page={page}'
+                        pages_url.append(page_url)
+                    resp_page = self.request.get(pages_url[-1])
+                    max_page = self.get_max_page(resp_page.text)
+            resps_all_pages = self.requests.get(pages_url)
+            newbuildings_urls = []
+            for resp in resps_all_pages:
+                newbuildings_urls.extend(self.parsing_newbuildings_urls(resp))
+            newbuildings_city[city] = newbuildings_urls
+        print('{} секунд'.format(time.time()-start_time))
+        return newbuildings_city
+
+
+class City(Parser):
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+        self.newbuildings = []
+        self.name = str()
+        self.html_code = str()
+        self.pages_objects = []
+
+    def update_name(self):
+        self.name = unquote(self.html_code).split('/')[-1]
+
+    def get_max_page(self, resp):
+        soup = BeautifulSoup(resp, 'lxml')
+        max_page = soup.select('.Pagination__StyledPaginationButton-fz9lk2-0')[-2].text
+        return int(max_page)
+
+    def update_all_pages(self):
+        self.pages_objects = self.load_object('pages_objects')
+        if self.pages_objects:
+            return
+        max_page = self.get_max_page(self.html_code)
+        pages_url = [self.url]
+        page = 1
+        if max_page:
+            while page != max_page:
+                while page != max_page:
+                    page += 1
+                    page_url = self.url + f'?page={page}'
+                    pages_url.append(page_url)
+                resp_page = self.request.get(pages_url[-1])
+                max_page = self.get_max_page(resp_page.text)
+        self.pages_objects = [PageObject(self, url) for url in self.pages_objects]
+        resps_all_pages = self.requests.get(pages_url)
+        for index_resps in range(len(resps_all_pages)):
+            self.pages_objects[index_resps].html_code = resps_all_pages[index_resps]
+
+    def clear_html_code(self):
+        self.html_code = str()
+
+
+class PageObject:
+    def __init__(self, city, url):
+        self.city = city
+        self.url = url
+        self.html_code = str()
+        self.newbuildings = []
+
+
+class NewBuilding(Parser):
+    def __init__(self, city, url):
+        super().__init__()
+        self.city = city
+        self.url = url
+
+
+
+
 def main():
-    parser = NewBuildingsData()
-    cities = parser.get_cities_urls()
-    cities.reverse()
-    new_buildings_urls = parser.get_newbuildings_urls(cities)
-    for city in new_buildings_urls:
-        parsed_cities = eval(load_file('cities'))
-        if city in parsed_cities:
-            continue
-        print(city)
-        layouts = parser.get_building_layouts(new_buildings_urls[city])
-        parser.save_layouts(layouts, city)
-        parsed_cities.append(city)
-        save_file(str(parsed_cities), 'cities')
+    parser = BuildingsParser()
+    parser.update_cities()
+    # parser = NewBuildingsData()
+    # cities = parser.get_cities_urls()
+    # cities.reverse()
+    # new_buildings_urls = parser.get_newbuildings_urls(cities)
+    # for city in new_buildings_urls:
+    #     parsed_cities = eval(load_file('cities'))
+    #     if city in parsed_cities:
+    #         continue
+    #     print(city)
+    #     layouts = parser.get_building_layouts(new_buildings_urls[city])
+    #     parser.save_layouts(layouts, city)
+    #     parsed_cities.append(city)
+    #     save_file(str(parsed_cities), 'cities')
 
 
 
