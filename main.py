@@ -190,6 +190,7 @@ class BuildingsParser(Parser):
             resps = self.requests.get([city.url for city in self.cities])
             for index_resps in range(len(resps)):
                 self.cities[index_resps].html_code = resps[index_resps]
+
         for city in self.cities:
             city.update_name()
         self.save_object(self.cities, 'cities')
@@ -209,8 +210,6 @@ class BuildingsParser(Parser):
                 for page in city.pages_objects:
                     page.html_code = str()
         self.save_object(self.cities, 'cities')
-
-
 
 class City(Parser):
     def __init__(self, url):
@@ -255,7 +254,11 @@ class City(Parser):
             self.newbuildings.extend(page.newbuildings)
 
     def update_buildings_html_code(self):
-        pass
+        urls = [newbuilding.url for newbuilding in self.newbuildings]
+        count_newbuildings = len(self.newbuildings)
+        resps = self.requests.get(urls)
+        for index_building in range(count_newbuildings):
+            self.newbuildings[index_building].html_code = resps[index_building]
 
 
 class PageObject:
@@ -281,6 +284,7 @@ class NewBuilding(Parser):
         self.url = url
         self.name = unquote(self.url).split('/')[-1]
         self.layout_page = LayoutPage(self, city, self.url + quote('/планировки'))
+        self.html_code = str()
 
 
 class LayoutPage:
@@ -291,11 +295,11 @@ class LayoutPage:
         self.html_code = str()
         self.layouts = []
 
-
     def update_layouts(self):
         if self.layouts:
             return
-        layouts = [HOST + quote(layout['href'].replace('HOST', '')) for layout in
+        soup = BeautifulSoup(self.newbuilding.html_code, 'lxml')
+        self.layouts = [Layout(self.newbuilding, self.city, HOST + quote(layout['href'].replace('HOST', ''))) for layout in
                         soup.select('.LayoutCard__StyledImage-sc-1j6xc9t-0.bOLFEI')]
 
 
