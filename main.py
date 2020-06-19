@@ -182,24 +182,28 @@ class BuildingsParser(Parser):
                      if 'новостройки' in city_block['href']]
         return city_urls
 
-    def start(self):
-        self.cities = self.load_object('cities')
+    def update_cities_html_code(self):
         print('Update city html code')
-        if not self.cities:
-            cities_urls = self.get_cities_urls()
-            self.cities = [City(url) for url in cities_urls]
-            for city in self.cities:
-                city.update_html_code()
+        cities_urls = self.get_cities_urls()
+        self.cities = [City(url) for url in cities_urls]
+        for city in self.cities:
+            city.update_html_code()
+
+    def update_cities_names(self):
         print('Update city names')
         for city in self.cities:
             city.update_name()
             print(city.name)
         self.save_object(self.cities, 'cities')
+
+    def update_pages(self):
         print('Update pages')
         for city in self.cities:
             print(city.name)
             city.update_all_pages()
             self.save_object(self.cities, 'cities')
+
+    def update_newbuildings(self):
         print('Update newbuildings')
         for city in self.cities:
             for page in city.pages_objects:
@@ -211,19 +215,32 @@ class BuildingsParser(Parser):
                 for page in city.pages_objects:
                     page.html_code = str()
             self.save_object(self.cities, 'cities')
-        self.save_object(self.cities, 'cities')
+
+    def update_layouts(self):
         print('Update layouts')
         for city in self.cities:
+            print(city.name)
             if city.is_parsed:
                 continue
             city.update_buildings_html_code()
             for newbuilding in city.newbuildings:
+                print(newbuilding.name)
                 if newbuilding.is_parsed:
                     continue
                 newbuilding.layout_page.update_layouts()
                 self.save_object(self.cities, 'cities')
             city.is_parsed = True
             self.save_object(self.cities, 'cities')
+
+    def start(self):
+        self.cities = self.load_object('cities')
+        if not self.cities:
+            self.update_cities_html_code()
+        self.update_cities_names()
+        self.update_pages()
+        self.update_newbuildings()
+        self.update_layouts()
+
 
 class City(Parser):
     def __init__(self, url):
