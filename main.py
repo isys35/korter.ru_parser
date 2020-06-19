@@ -338,10 +338,12 @@ class LayoutPage:
 
     def update_layouts(self):
         if self.layouts:
+            self.newbuilding.is_parsed = True
             return
         soup = BeautifulSoup(self.newbuilding.html_code, 'lxml')
         self.layouts = [Layout(self.newbuilding, self.city, HOST + quote(layout['href'].replace('HOST', ''))) for layout in
                         soup.select('.LayoutCard__StyledImage-sc-1j6xc9t-0.bOLFEI')]
+        self.newbuilding.html_code = str()
         self.newbuilding.is_parsed = True
 
 
