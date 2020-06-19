@@ -203,18 +203,14 @@ class BuildingsParser(Parser):
         print('Update newbuildings')
         for city in self.cities:
             for page in city.pages_objects:
+                print(page.url)
                 page.update_newbuildings()
-        self.save_object(self.cities, 'cities')
-        print('Update newbuildings in city')
-        for city in self.cities:
             city.update_newbuildings()
-        self.save_object(self.cities, 'cities')
-        print('Clear html in city and in page')
-        for city in self.cities:
             if city.name and city.newbuildings:
                 city.html_code = str()
                 for page in city.pages_objects:
                     page.html_code = str()
+            self.save_object(self.cities, 'cities')
         self.save_object(self.cities, 'cities')
         print('Update layouts')
         for city in self.cities:
